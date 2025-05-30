@@ -17,14 +17,11 @@ import re
 from selenium.webdriver.common.keys import Keys
 import pyautogui
 import pyperclip
-import subprocess
-import os
-import platform
 
 class AccountCreatorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Filmora Credit Farm - Account Creator Pro")
+        self.root.title("Filmora Credit Farm - Account Creator")
         self.root.geometry("800x700")
         self.root.configure(bg='#2c3e50')
         
@@ -32,99 +29,9 @@ class AccountCreatorApp:
         self.stop_flag = False
         self.is_running = False
         
-        # Danh sách User Agents để rotation
-        self.user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        ]
-        
         # Tạo giao diện
         self.create_widgets()
         
-    def reset_network_ip(self):
-        """Reset IP mạng thông qua việc restart network adapter"""
-        try:
-            self.log("🔄 Đang reset IP mạng...")
-            
-            if platform.system() == "Windows":
-                # Lấy danh sách network adapters
-                result = subprocess.run(['netsh', 'interface', 'show', 'interface'], 
-                                      capture_output=True, text=True, timeout=30)
-                
-                if result.returncode == 0:
-                    # Tìm adapter đang hoạt động (Connected)
-                    lines = result.stdout.split('\n')
-                    active_adapters = []
-                    
-                    for line in lines:
-                        if 'Connected' in line and ('Wi-Fi' in line or 'Ethernet' in line or 'Local Area Connection' in line):
-                            parts = line.split()
-                            if len(parts) >= 4:
-                                adapter_name = ' '.join(parts[3:])
-                                active_adapters.append(adapter_name.strip())
-                    
-                    if active_adapters:
-                        adapter_name = active_adapters[0]  # Lấy adapter đầu tiên
-                        self.log(f"📡 Đang reset adapter: {adapter_name}")
-                        
-                        # Disable adapter
-                        subprocess.run(['netsh', 'interface', 'set', 'interface', adapter_name, 'disabled'], 
-                                     timeout=15, check=False)
-                        time.sleep(3)
-                        
-                        # Enable adapter
-                        subprocess.run(['netsh', 'interface', 'set', 'interface', adapter_name, 'enabled'], 
-                                     timeout=15, check=False)
-                        
-                        self.log("⏳ Đợi adapter kết nối lại...")
-                        time.sleep(8)
-                        
-                        # Flush DNS
-                        subprocess.run(['ipconfig', '/flushdns'], timeout=10, check=False)
-                        
-                        # Release và renew IP
-                        subprocess.run(['ipconfig', '/release'], timeout=15, check=False)
-                        time.sleep(2)
-                        subprocess.run(['ipconfig', '/renew'], timeout=20, check=False)
-                        
-                        self.log("✅ Reset IP mạng thành công!")
-                        time.sleep(5)  # Đợi thêm để đảm bảo kết nối ổn định
-                        
-                    else:
-                        self.log("⚠️ Không tìm thấy adapter mạng hoạt động")
-                        
-            else:
-                # Linux/Mac - restart network manager
-                self.log("🐧 Đang reset mạng trên Linux/Mac...")
-                try:
-                    subprocess.run(['sudo', 'systemctl', 'restart', 'NetworkManager'], timeout=15, check=False)
-                    time.sleep(5)
-                    self.log("✅ Reset mạng thành công!")
-                except:
-                    self.log("⚠️ Cần quyền sudo để reset mạng trên Linux/Mac")
-                    
-        except subprocess.TimeoutExpired:
-            self.log("⚠️ Timeout khi reset mạng, tiếp tục...")
-        except Exception as e:
-            self.log(f"⚠️ Lỗi khi reset IP mạng: {str(e)}")
-            self.log("🔄 Tiếp tục mà không reset IP...")
-            
-    def get_random_user_agent(self):
-        """Lấy User Agent ngẫu nhiên"""
-        return random.choice(self.user_agents)
-        
-    def add_random_delay(self, min_delay=1, max_delay=3):
-        """Thêm delay ngẫu nhiên để tránh detection"""
-        delay = random.uniform(min_delay, max_delay)
-        self.log(f"⏳ Delay ngẫu nhiên: {delay:.1f}s")
-        time.sleep(delay)
-
     def create_widgets(self):
         # Frame chính
         main_frame = tk.Frame(self.root, bg='#2c3e50', padx=20, pady=20)
@@ -284,16 +191,12 @@ class AccountCreatorApp:
         return ''.join(password)
 
     def setup_driver(self):
-        """Thiết lập Chrome driver với chế độ ẩn danh và anti-detection nâng cao"""
+        """Thiết lập Chrome driver với chế độ ẩn danh"""
         try:
-            self.log("🔧 Đang thiết lập ChromeDriver với bảo mật cao...")
+            self.log("🔧 Đang thiết lập ChromeDriver...")
             
             chrome_options = Options()
-            
-            # Chế độ ẩn danh
             chrome_options.add_argument("--incognito")
-            
-            # Anti-detection cơ bản
             chrome_options.add_argument("--disable-blink-features=AutomationControlled")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--no-sandbox")
@@ -309,76 +212,11 @@ class AccountCreatorApp:
             chrome_options.add_argument("--disable-renderer-backgrounding")
             chrome_options.add_argument("--disable-features=TranslateUI")
             chrome_options.add_argument("--disable-ipc-flooding-protection")
-            
-            # Anti-detection nâng cao
-            chrome_options.add_argument("--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer")
-            chrome_options.add_argument("--disable-features=UserAgentClientHint")
-            chrome_options.add_argument("--disable-client-side-phishing-detection")
-            chrome_options.add_argument("--disable-component-extensions-with-background-pages")
-            chrome_options.add_argument("--disable-default-apps")
-            chrome_options.add_argument("--disable-features=Translate")
-            chrome_options.add_argument("--disable-hang-monitor")
-            chrome_options.add_argument("--disable-popup-blocking")
-            chrome_options.add_argument("--disable-prompt-on-repost")
-            chrome_options.add_argument("--disable-sync")
-            chrome_options.add_argument("--disable-domain-reliability")
-            chrome_options.add_argument("--disable-features=AudioServiceOutOfProcess")
-            chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-            chrome_options.add_argument("--disable-background-networking")
-            chrome_options.add_argument("--disable-breakpad")
-            chrome_options.add_argument("--disable-component-update")
-            chrome_options.add_argument("--disable-datasaver-prompt")
-            chrome_options.add_argument("--disable-desktop-notifications")
-            chrome_options.add_argument("--disable-features=TranslateUI")
-            chrome_options.add_argument("--disable-ipc-flooding-protection")
-            chrome_options.add_argument("--no-first-run")
-            chrome_options.add_argument("--no-service-autorun")
-            chrome_options.add_argument("--password-store=basic")
-            chrome_options.add_argument("--use-mock-keychain")
-            chrome_options.add_argument("--disable-features=WebRtcRemoteEventLog")
-            chrome_options.add_argument("--disable-remote-fonts")
-            chrome_options.add_argument("--disable-permissions-api")
-            
-            # Randomize screen size để tránh fingerprinting
-            screen_sizes = [
-                "--window-size=1366,768",
-                "--window-size=1920,1080", 
-                "--window-size=1440,900",
-                "--window-size=1536,864",
-                "--window-size=1280,720"
-            ]
-            chrome_options.add_argument(random.choice(screen_sizes))
-            
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
             chrome_options.add_experimental_option('useAutomationExtension', False)
 
-            # User agent ngẫu nhiên
-            user_agent = self.get_random_user_agent()
-            chrome_options.add_argument(f"--user-agent={user_agent}")
-            self.log(f"🎭 User Agent: {user_agent[:50]}...")
-            
-            # Prefs để disable thêm các tính năng tracking
-            prefs = {
-                "profile.default_content_setting_values": {
-                    "notifications": 2,
-                    "geolocation": 2,
-                    "media_stream": 2,
-                },
-                "profile.managed_default_content_settings": {
-                    "images": 2
-                },
-                "profile.default_content_settings": {
-                    "popups": 0
-                },
-                "datareduction.proxy.enabled": False,
-                "profile.password_manager_enabled": False,
-                "profile.default_content_setting_values.notifications": 2,
-                "profile.default_content_setting_values.geolocation": 2,
-                "profile.managed_default_content_settings.images": 2,
-                "webkit.webprefs.loads_images_automatically": False,
-                "profile.managed_default_content_settings.media_stream": 2
-            }
-            chrome_options.add_experimental_option("prefs", prefs)
+            # Thêm user agent để tránh bị phát hiện
+            chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             
             driver = None
             
@@ -412,37 +250,8 @@ class AccountCreatorApp:
                     raise Exception(f"Không thể khởi tạo ChromeDriver. Vui lòng kiểm tra:\n1. Chrome browser đã cài đặt chưa\n2. Cập nhật Chrome lên phiên bản mới nhất\n3. Restart máy tính")
             
             if driver:
-                # Thêm script anti-detection
                 driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-                
-                # Hide automation indicators
-                driver.execute_cdp_cmd('Runtime.evaluate', {
-                    "expression": """
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    });
-                    
-                    Object.defineProperty(navigator, 'plugins', {
-                        get: () => [1, 2, 3, 4, 5]
-                    });
-                    
-                    Object.defineProperty(navigator, 'languages', {
-                        get: () => ['en-US', 'en', 'vi']
-                    });
-                    
-                    window.chrome = {
-                        runtime: {}
-                    };
-                    
-                    Object.defineProperty(navigator, 'permissions', {
-                        get: () => ({
-                            query: () => Promise.resolve({state: 'granted'})
-                        })
-                    });
-                    """
-                })
-                
-                self.log("✅ ChromeDriver đã sẵn sàng với bảo mật cao!")
+                self.log("✅ ChromeDriver đã sẵn sàng!")
                 return driver
             else:
                 raise Exception("Không thể tạo ChromeDriver")
@@ -452,33 +261,19 @@ class AccountCreatorApp:
             raise e
         
     def create_single_account(self, invite_link, account_num):
-        """Tạo một tài khoản duy nhất với bảo mật cao"""
+        """Tạo một tài khoản duy nhất"""
         driver = None
         try:
-            self.log(f"🔄 Bắt đầu tạo account #{account_num} với bảo mật cao")
-            
-            # Reset IP mạng trước khi tạo account (trừ account đầu tiên)
-            if account_num > 1:
-                self.reset_network_ip()
-            
-            # Random delay trước khi bắt đầu
-            self.add_random_delay(2, 5)
+            self.log(f"🔄 Bắt đầu tạo account #{account_num}")
             
             # Thiết lập driver
             driver = self.setup_driver()
             wait = WebDriverWait(driver, 15)
             
-            # Clear cookies và storage
-            driver.delete_all_cookies()
-            driver.execute_script("window.localStorage.clear();")
-            driver.execute_script("window.sessionStorage.clear();")
-            
             # Bước 1: Vào mail.tm để lấy email
             self.log(f"📧 Đang lấy email tạm thời...")
             driver.get("https://mail.tm/vi/")
-            
-            # Random delay
-            self.add_random_delay(3, 6)
+            time.sleep(5)
             
             # Lấy email
             email_input = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div/div[2]/div/div/div[1]/div/div/input")))
@@ -489,17 +284,13 @@ class AccountCreatorApp:
             pyperclip.copy(email)
             self.log(f"📋 Đã copy email vào clipboard")
             
-            # Random delay
-            self.add_random_delay(1, 3)
-            
             # Bước 2: Mở link mời và kích hoạt popup
             self.log(f"🔗 Đang mở liên kết mời...")
             driver.execute_script(f"window.open('{invite_link}', '_blank');")
             wait.until(lambda d: len(d.window_handles) == 2)
             driver.switch_to.window(driver.window_handles[1])
             
-            # Random delay
-            self.add_random_delay(2, 4)
+            time.sleep(1)
             self.log(f"📄 Trang đã load, đang kích hoạt popup đăng ký...")
             
             # Scroll lên đầu trang và focus
@@ -511,12 +302,12 @@ class AccountCreatorApp:
             self.log(f"🎹 Bấm Tab 12 lần để tới nút Sign Up Now...")
             for i in range(12):
                 pyautogui.press('tab')
-                time.sleep(random.uniform(0.1, 0.2))  # Random delay giữa các lần bấm
+                time.sleep(0.1)
             
             # Bấm Enter để mở popup
             self.log(f"🎹 Bấm Enter để mở popup đăng ký...")
             pyautogui.press('enter')
-            self.add_random_delay(1, 2)
+            time.sleep(1)
             
             # Kiểm tra popup đã mở
             iframe_found = driver.find_elements(By.XPATH, "//iframe[contains(@src, 'accounts.wondershare.com')]")
@@ -531,7 +322,7 @@ class AccountCreatorApp:
             # Tab 6 lần đến trường email
             for i in range(6):
                 pyautogui.press('tab')
-                time.sleep(random.uniform(0.1, 0.2))
+                time.sleep(0.1)
             
             # Dán email
             self.log(f"📧 Dán email: {email}")
@@ -553,7 +344,7 @@ class AccountCreatorApp:
             pyautogui.press('enter')
             
             self.log(f"✅ Đã hoàn thành điền form đăng ký")
-            self.add_random_delay(1, 2)
+            time.sleep(1)
             
             # Bước 4: Quay lại email để lấy mã xác nhận
             self.log(f"📬 Đang lấy mã xác nhận từ email...")
@@ -566,15 +357,12 @@ class AccountCreatorApp:
             email_clicked = False
             
             for retry in range(max_retries):
-                if self.stop_flag:
-                    return False
-                    
                 try:
                     self.log(f"🔄 Lần thử {retry + 1}/{max_retries} - Đang kiểm tra email...")
                     
                     if not email_clicked:
                         driver.refresh()
-                        self.add_random_delay(2, 3)
+                        time.sleep(2)
                     
                     # Thử lấy mã từ preview trước
                     try:
@@ -624,10 +412,10 @@ class AccountCreatorApp:
                         if email_link:
                             email_link.click()
                             email_clicked = True
-                            self.add_random_delay(1, 2)
+                            time.sleep(1)
                             self.log(f"✅ Đã click vào email")
                         else:
-                            self.add_random_delay(8, 12)
+                            time.sleep(10)
                             continue
                     
                     # Tìm mã trong nội dung email chi tiết
@@ -665,13 +453,13 @@ class AccountCreatorApp:
                         else:
                             if email_clicked and retry < max_retries - 1:
                                 driver.refresh()
-                                self.add_random_delay(3, 5)
+                                time.sleep(3)
                                 email_clicked = False
                     
                 except Exception as e:
                     self.log(f"⚠️ Lỗi lần {retry + 1}: {str(e)}")
                     email_clicked = False
-                    self.add_random_delay(8, 12)
+                    time.sleep(10)
             
             if not verification_code:
                 self.log(f"❌ Không lấy được mã xác nhận")
@@ -680,7 +468,7 @@ class AccountCreatorApp:
             # Bước 5: Nhập mã xác nhận
             self.log(f"🔄 Đang nhập mã xác nhận...")
             driver.switch_to.window(driver.window_handles[1])
-            self.add_random_delay(2, 3)
+            time.sleep(2)
             
             # Chuyển vào iframe nếu có
             try:
@@ -705,14 +493,14 @@ class AccountCreatorApp:
             # Tab đến nút xác nhận và Enter
             for i in range(6):
                 pyautogui.press('tab')
-                time.sleep(random.uniform(0.1, 0.2))
+                time.sleep(0.1)
             pyautogui.press('enter')
             
             self.log(f"✅ Đã hoàn thành nhập mã xác nhận")
             
             # Đợi 5 giây rồi tắt trình duyệt
             self.log(f"⏳ Đợi 2 giây rồi tắt trình duyệt...")
-            self.add_random_delay(2, 3)
+            time.sleep(2)
             
             self.log(f"🎉 Account #{account_num} hoàn thành! Đang tắt trình duyệt...")
             return True
@@ -723,12 +511,9 @@ class AccountCreatorApp:
             
         finally:
             if driver:
-                try:
-                    driver.quit()
-                    self.log(f"🔧 Đã tắt trình duyệt cho account #{account_num}")
-                except:
-                    pass
-
+                driver.quit()
+                self.log(f"🔧 Đã tắt trình duyệt cho account #{account_num}")
+                
     def start_creation(self):
         """Bắt đầu quá trình tạo account"""
         if self.is_running:
@@ -761,12 +546,11 @@ class AccountCreatorApp:
         thread.start()
         
     def creation_worker(self, invite_link, account_count):
-        """Worker thread để tạo account với bảo mật cao"""
+        """Worker thread để tạo account"""
         success_count = 0
         failed_count = 0
         
-        self.log(f"🚀 Bắt đầu tạo {account_count} account với bảo mật cao...")
-        self.log(f"🛡️ Tính năng bảo mật: Reset IP mạng, User Agent rotation, Random delays")
+        self.log(f"🚀 Bắt đầu tạo {account_count} account...")
         
         for i in range(1, account_count + 1):
             if self.stop_flag:
@@ -785,24 +569,19 @@ class AccountCreatorApp:
                 failed_count += 1
                 self.failed_var.set(str(failed_count))
                 
-            # Nghỉ giữa các lần tạo với delay ngẫu nhiên
+            # Nghỉ giữa các lần tạo
             if i < account_count and not self.stop_flag:
-                delay_time = random.randint(15, 30)  # Delay dài hơn để tránh detection
-                self.log(f"⏳ Nghỉ {delay_time} giây trước khi tạo account tiếp theo...")
-                for _ in range(delay_time):
-                    if self.stop_flag:
-                        break
-                    time.sleep(1)
+                self.log(f"⏳ Nghỉ 1 giây trước khi tạo account tiếp theo...")
+                time.sleep(1)
                 
         # Hoàn thành
         self.log(f"🏁 Hoàn thành! Thành công: {success_count}/{account_count}")
         self.log(f"🏆 Tổng điểm đạt được: {success_count * 100} điểm")
-        self.log(f"🛡️ Đã sử dụng tính năng bảo mật cao để tránh capcha")
         
         self.is_running = False
         self.start_button.config(state='normal')
         self.stop_button.config(state='disabled')
-
+        
     def stop_creation(self):
         """Dừng quá trình tạo account"""
         self.stop_flag = True
