@@ -17,6 +17,9 @@ import re
 from selenium.webdriver.common.keys import Keys
 import pyautogui
 import pyperclip
+import subprocess
+import sys
+import platform
 
 class AccountCreatorApp:
     def __init__(self, root):
@@ -76,6 +79,28 @@ class AccountCreatorApp:
                                   font=('Arial', 11), width=10,
                                   relief='flat', bd=5)
         count_spinbox.pack(anchor='w', pady=(5, 0))
+        
+        # Tùy chọn reset IP
+        ip_reset_frame = tk.Frame(config_frame, bg='#34495e')
+        ip_reset_frame.pack(fill='x', padx=15, pady=10)
+        
+        self.reset_ip_var = tk.BooleanVar(value=True)
+        ip_checkbox = tk.Checkbutton(ip_reset_frame, 
+                                   text="🌐 Reset IP mạng sau mỗi account (khuyến nghị)",
+                                   variable=self.reset_ip_var,
+                                   font=('Arial', 11, 'bold'),
+                                   fg='#ecf0f1', bg='#34495e',
+                                   selectcolor='#2c3e50',
+                                   activebackground='#34495e',
+                                   activeforeground='#ecf0f1')
+        ip_checkbox.pack(anchor='w')
+        
+        # Ghi chú reset IP
+        ip_note = tk.Label(ip_reset_frame, 
+                          text="💡 Reset IP giúp tránh CAPTCHA và tăng tỷ lệ thành công",
+                          font=('Arial', 9), 
+                          fg='#95a5a6', bg='#34495e')
+        ip_note.pack(anchor='w', pady=(2, 0))
         
         # Frame điều khiển
         control_frame = tk.Frame(main_frame, bg='#2c3e50')
@@ -565,14 +590,22 @@ class AccountCreatorApp:
                 self.success_var.set(str(success_count))
                 self.score_var.set(f"{score} điểm")
                 self.log(f"🏆 Điểm hiện tại: {score}")
+                
+                # Reset IP sau khi tạo thành công để tránh CAPTCHA
+                if i < account_count and not self.stop_flag:
+                    if self.reset_ip_var.get():
+                        self.reset_network_ip()
+                    else:
+                        self.log("🌐 Bỏ qua reset IP (đã tắt trong cấu hình)")
+                    
             else:
                 failed_count += 1
                 self.failed_var.set(str(failed_count))
                 
             # Nghỉ giữa các lần tạo
             if i < account_count and not self.stop_flag:
-                self.log(f"⏳ Nghỉ 1 giây trước khi tạo account tiếp theo...")
-                time.sleep(1)
+                self.log(f"⏳ Nghỉ 3 giây trước khi tạo account tiếp theo...")
+                time.sleep(3)
                 
         # Hoàn thành
         self.log(f"🏁 Hoàn thành! Thành công: {success_count}/{account_count}")
@@ -586,6 +619,112 @@ class AccountCreatorApp:
         """Dừng quá trình tạo account"""
         self.stop_flag = True
         self.log("⚠️ Đang dừng...")
+
+    def reset_network_ip(self):
+        """Reset IP mạng để tránh CAPTCHA"""
+        try:
+            self.log("🔄 Đang reset IP mạng...")
+            
+            # Phương pháp 1: Release và renew IP
+            try:
+                self.log("📡 Đang release IP cũ...")
+                result1 = subprocess.run(['ipconfig', '/release'], 
+                                       capture_output=True, text=True, timeout=30)
+                
+                if result1.returncode == 0:
+                    self.log("✅ Đã release IP thành công")
+                    time.sleep(2)
+                    
+                    self.log("📡 Đang renew IP mới...")
+                    result2 = subprocess.run(['ipconfig', '/renew'], 
+                                           capture_output=True, text=True, timeout=30)
+                    
+                    if result2.returncode == 0:
+                        self.log("✅ Đã renew IP thành công")
+                    else:
+                        self.log("⚠️ Renew IP thất bại, thử phương pháp khác...")
+                        raise Exception("Renew failed")
+                else:
+                    self.log("⚠️ Release IP thất bại, thử phương pháp khác...")
+                    raise Exception("Release failed")
+                    
+            except Exception as e:
+                self.log(f"⚠️ Phương pháp 1 thất bại: {str(e)}")
+                
+                # Phương pháp 2: Flush DNS và reset Winsock
+                try:
+                    self.log("🔄 Đang flush DNS...")
+                    subprocess.run(['ipconfig', '/flushdns'], 
+                                 capture_output=True, text=True, timeout=15)
+                    
+                    self.log("🔄 Đang reset Winsock...")
+                    subprocess.run(['netsh', 'winsock', 'reset'], 
+                                 capture_output=True, text=True, timeout=15)
+                    
+                    self.log("✅ Đã reset network stack")
+                    
+                except Exception as e2:
+                    self.log(f"⚠️ Phương pháp 2 thất bại: {str(e2)}")
+                    
+                    # Phương pháp 3: Restart network adapter (cần quyền admin)
+                    try:
+                        self.log("🔄 Đang restart network adapter...")
+                        
+                        # Lấy danh sách network adapter
+                        result = subprocess.run(['wmic', 'path', 'win32_networkadapter', 
+                                               'where', 'NetEnabled=true', 'get', 'Name'], 
+                                              capture_output=True, text=True, timeout=15)
+                        
+                        if result.returncode == 0:
+                            adapters = [line.strip() for line in result.stdout.split('\n') 
+                                      if line.strip() and 'Name' not in line]
+                            
+                            for adapter in adapters:
+                                if adapter and ('Wi-Fi' in adapter or 'Ethernet' in adapter or 'Wireless' in adapter):
+                                    try:
+                                        # Disable adapter
+                                        subprocess.run(['netsh', 'interface', 'set', 'interface', 
+                                                      adapter, 'disable'], 
+                                                     capture_output=True, text=True, timeout=10)
+                                        time.sleep(2)
+                                        
+                                        # Enable adapter
+                                        subprocess.run(['netsh', 'interface', 'set', 'interface', 
+                                                      adapter, 'enable'], 
+                                                     capture_output=True, text=True, timeout=10)
+                                        
+                                        self.log(f"✅ Đã restart adapter: {adapter}")
+                                        break
+                                    except:
+                                        continue
+                        
+                    except Exception as e3:
+                        self.log(f"⚠️ Phương pháp 3 thất bại: {str(e3)}")
+                        self.log("💡 Có thể cần chạy với quyền Administrator")
+            
+            # Đợi một chút để network ổn định
+            self.log("⏳ Đợi 5 giây để network ổn định...")
+            time.sleep(5)
+            
+            # Kiểm tra IP mới
+            try:
+                result = subprocess.run(['ipconfig'], capture_output=True, text=True, timeout=15)
+                if result.returncode == 0:
+                    # Tìm IPv4 Address
+                    ipv4_lines = [line for line in result.stdout.split('\n') if 'IPv4 Address' in line]
+                    if ipv4_lines:
+                        current_ip = ipv4_lines[0].split(':')[-1].strip()
+                        self.log(f"🌐 IP hiện tại: {current_ip}")
+                    else:
+                        self.log("🌐 Đã reset network, IP sẽ được cập nhật")
+            except:
+                self.log("🌐 Network đã được reset")
+                
+            self.log("✅ Hoàn thành reset IP mạng!")
+            
+        except Exception as e:
+            self.log(f"❌ Lỗi khi reset IP: {str(e)}")
+            self.log("💡 Tip: Chạy ứng dụng với quyền Administrator để reset hiệu quả hơn")
 
 def main():
     root = tk.Tk()
